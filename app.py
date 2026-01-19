@@ -1,17 +1,53 @@
-from flask import Flask, request
 import os
+from flask import Flask, request
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 
-@app.route("/", methods=["GET"])
-def home():
-    return "🌿 Prakriti AI is alive!"
+TOKEN = os.getenv("WHATSAPP_TOKEN")
+PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
 
+# 🔹 Webhook verification
+@app.route("/webhook", methods=["GET"])
+def verify():
+    if request.args.get("hub.verify_token") == VERIFY_TOKEN:
+        return request.args.get("hub.challenge")
+    return "Invalid token"
+
+# 🔹 Receive message
 @app.route("/webhook", methods=["POST"])
-def whatsapp_webhook():
+def webhook():
     data = request.json
-    print(data)
-    return "ok", 200
+
+    try:
+        msg = data["entry"][0]["changes"][0]["value"]["messages"][0]
+        sender = msg["from"]
+        text = msg["text"]["body"]
+
+        send_message(sender, f"🌿 Hi! Main Prakriti AI hoon 🤖\nTumne likha: {text}")
+
+    except:
+        pass
+
+    return "ok"
+
+# 🔹 Send message function
+def send_message(to, text):
+    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "text": {"body": text}
+    }
+    requests.post(url, headers=headers, json=payload)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    app.run(port=5000)
